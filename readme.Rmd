@@ -1,0 +1,44 @@
+---
+title: "Longevidade nos municípios do PR"
+author: Marcos Abreu
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Um exercício de "data wrangling"
+
+Um dos meus livros prediletos sobre R é o [ModernDive](https://moderndive.com). É muito agradável de ler, e a estrutura de tópicos me parecer ser a melhor forma já proposta para apresentar os diversos temas cobertos pelo livro.
+
+Logo no início nos deparamos com uma ótima introdução sobre tipos de gráficos e com o belo gráfico da [figura 2.1](https://moderndive.com/2-viz.html#fig:gapminder) que mostra a relação entre PIB e expectativa de vida entre países.
+
+Este exercício se propõe a repetir o mesmo gráfico, porém para os municípios do Paraná, usando as regiões para o código de cores.
+
+## Fontes de dados
+
+O primeiro desafio do exercício foi obter os dados necessários para o gráfico. São eles:
+
+- Relação de municípios por regiões do estado;
+
+- População dos municípios;
+
+- PIB dos municípios;
+
+- Expectativa de vida dos municípios.
+
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
