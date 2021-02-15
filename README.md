@@ -15,7 +15,10 @@ gráficos e com o belo gráfico da
 a relação entre PIB e expectativa de vida entre países.
 
 Este exercício se propõe a repetir o mesmo gráfico, porém para os
-municípios do Paraná, usando as regiões para o código de cores.
+municípios do Paraná, usando as regiões para o código de cores, que
+termine parecido como isto:
+
+![scatterplot](./readme_files/figure-gfm/scatter_plot_2-1.png)
 
 ## Fontes de dados
 
@@ -281,12 +284,21 @@ dados_pr <- dados_pr %>% left_join(esp_vida_pr_2010)
 
     ## Joining, by = "nome_mun"
 
+O pacote *visdat* é ótimo para ajudar na visualização de dados
+faltantes.
+
 ``` r
 library(visdat)
 dados_pr %>% vis_dat()
 ```
 
-![](readme_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](readme_files/figure-gfm/vis_dat_pr-1.png)<!-- -->
+
+``` r
+dados_pr %>% vis_miss()
+```
+
+![](readme_files/figure-gfm/vis_dat_pr-2.png)<!-- -->
 
 ## Diagrama de Dispersão
 
@@ -312,7 +324,7 @@ pr_plot <-
 pr_plot
 ```
 
-![](readme_files/figure-gfm/scatter_plot-1.png)<!-- -->
+![](readme_files/figure-gfm/scatter_plot_1-1.png)<!-- -->
 
 Não ficou bom. Vamos mudar a escala de x para logarítmica para melhor
 visualização dos dados. Vamos também ajustar os nomes dos eixos e das
@@ -340,4 +352,41 @@ pr_plot <-
 pr_plot
 ```
 
-![](readme_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](readme_files/figure-gfm/scatter_plot_2-1.png)<!-- -->
+
+Alternativamente podemos trocar a expectativa de vida pelo Índice de
+Desenvolvimento Humano de longevidade, e o PIB por PIB per capita.
+
+``` r
+ # desabilita a notação científica
+pr_plot <- 
+  ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
+  geom_point(mapping = aes(x = pib_percapita, 
+                            y = idhm_longev, 
+                            size = tot, 
+                            fill = nome_mesor), shape = 21) +
+  labs(title = "PIB per capita vs IDH-longevidade nos municípios paranaenses",
+       subtitle = "2010",
+       caption = "fonte: IBGE",
+       x = "PIB per capita",
+       y = "IDH longevidade",
+       fill = "Regiões",
+       size = "População") +
+  geom_hline(data = ref_br, aes(yintercept = idhm_longev), color = "darkblue") +
+  ggrepel::geom_label_repel(data = (dados_pr %>%
+                                      filter(!is.na(esp_vida),
+                                             pib_percapita > 50000)),
+                            mapping = aes( x = pib_percapita, 
+                                           y = idhm_longev, 
+                                           label = nome_mun),
+                            max.overlaps = Inf)
+
+pr_plot
+```
+
+![](readme_files/figure-gfm/scatter_plot_3-1.png)<!-- -->
+
+## Conclusões
+
+Este exercício foi construído para exemplificar ações de ajuste de
+dados, análise exploratória e construção de gráficos.

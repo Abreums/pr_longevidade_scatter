@@ -18,7 +18,9 @@ Um dos meus livros prediletos sobre R é o [ModernDive](https://moderndive.com).
 
 Logo no início nos deparamos com uma ótima introdução sobre tipos de gráficos e com o belo gráfico da [figura 2.1](https://moderndive.com/2-viz.html#fig:gapminder) que mostra a relação entre PIB e expectativa de vida entre países.
 
-Este exercício se propõe a repetir o mesmo gráfico, porém para os municípios do Paraná, usando as regiões para o código de cores.
+Este exercício se propõe a repetir o mesmo gráfico, porém para os municípios do Paraná, usando as regiões para o código de cores, que termine parecido como isto:
+
+![scatterplot](./readme_files/figure-gfm/scatter_plot_2-1.png)
 
 ## Fontes de dados
 
@@ -173,8 +175,14 @@ As bases possuem colunas que nos ajudam a juntar as bases principalmente o códi
 ```{r}
 dados_pr <- pib %>% left_join(pop)
 dados_pr <- dados_pr %>% left_join(esp_vida_pr_2010)
+```
+
+O pacote *visdat* é ótimo para ajudar na visualização de dados faltantes.
+
+```{r vis_dat_pr}
 library(visdat)
 dados_pr %>% vis_dat()
+dados_pr %>% vis_miss()
 ```
 
 
@@ -188,7 +196,7 @@ dados_pr <- dados_pr %>%
 ```
 
 
-```{r scatter_plot}
+```{r scatter_plot_1}
 options(scipen = 999) # desabilita a notação científica
 pr_plot <- 
   ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
@@ -201,7 +209,7 @@ pr_plot
 
 Não ficou bom. Vamos mudar a escala de x para logarítmica para melhor visualização dos dados. Vamos também ajustar os nomes dos eixos e das legendas. E, vamos incluir uma linha com a média de expectativa de vida do Brasil.
 
-```{r}
+```{r scatter_plot_2}
  # desabilita a notação científica
 pr_plot <- 
   ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
@@ -223,3 +231,37 @@ pr_plot
   
 ```
 
+Alternativamente podemos trocar a expectativa de vida pelo Índice de Desenvolvimento Humano de longevidade, e o PIB por PIB per capita.
+
+
+```{r scatter_plot_3}
+ # desabilita a notação científica
+pr_plot <- 
+  ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
+  geom_point(mapping = aes(x = pib_percapita, 
+                            y = idhm_longev, 
+                            size = tot, 
+                            fill = nome_mesor), shape = 21) +
+  labs(title = "PIB per capita vs IDH-longevidade nos municípios paranaenses",
+       subtitle = "2010",
+       caption = "fonte: IBGE",
+       x = "PIB per capita",
+       y = "IDH longevidade",
+       fill = "Regiões",
+       size = "População") +
+  geom_hline(data = ref_br, aes(yintercept = idhm_longev), color = "darkblue") +
+  ggrepel::geom_label_repel(data = (dados_pr %>%
+                                      filter(!is.na(esp_vida),
+                                             pib_percapita > 50000)),
+                            mapping = aes( x = pib_percapita, 
+                                           y = idhm_longev, 
+                                           label = nome_mun),
+                            max.overlaps = Inf)
+
+pr_plot
+  
+```
+
+## Conclusões
+
+Este exercício foi construído para exemplificar ações de ajuste de dados, análise exploratória e construção de gráficos.
