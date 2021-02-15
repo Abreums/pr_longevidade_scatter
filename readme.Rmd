@@ -6,6 +6,10 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(ggrepel)
+library(scales)
 ```
 
 ## Um exercício de "data wrangling"
@@ -22,23 +26,200 @@ O primeiro desafio do exercício foi obter os dados necessários para o gráfico
 
 - Relação de municípios por regiões do estado;
 
-- População dos municípios;
-
 - PIB dos municípios;
 
-- Expectativa de vida dos municípios.
+- População dos municípios;
 
+- Expectativa de vida nos municípios.
 
-```{r cars}
-summary(cars)
+### PIB dos Municípios (IBGE)
+
+O portal [Cidades@](https://cidades.ibge.gov.br/pesquisas) possui diversas pesquisas realizadas pelo IBGE com dados das cidades brasileiras. Neste portal é possível encontrar [link para o levantamento do PIB dos municípios](https://www.ibge.gov.br/estatisticas/economicas/contas-nacionais/2036-np-produto-interno-bruto-dos-municipios/9088-produto-interno-bruto-dos-municipios.html?=&t=o-que-e).
+
+No menu "Edições -> 2018 -> Tabelas" é possível baixar arquivo com a base de dados 2010 a 2018.
+
+Estes dados nos fornecem o primeiro e o segundo itens da lista do que precisamos.
+
+```{r}
+pib <- readxl::read_excel("./dados/PIB dos Municípios - base de dados 2010-2018.xls",
+                          sheet = 1)
 ```
 
-## Including Plots
+Os dados são para todos os municípios do Brasil e os nomes das colunas são mais adequados para leitura humana do que para manipulação de dados. Vamos filtrar apenas os municípios que nos interessa e ajustar os nomes das colunas. Também vamos reduzir as colunas apenas àquelas que precisamos.
 
-You can also embed plots, for example:
+```{r}
+pib <- pib %>% 
+  filter(`Sigla da Unidade da Federação` == "PR",
+         `Ano` == 2010) %>% 
+  select(`Código do Município`,
+         `Nome do Município`,
+         `Código da Mesorregião`,
+         `Nome da Mesorregião`,
+         `Produto Interno Bruto, \na preços correntes\n(R$ 1.000)`,
+         `Produto Interno Bruto per capita, \na preços correntes\n(R$ 1,00)`) %>% 
+  rename(cod_mun = `Código do Município`,
+         nome_mun = `Nome do Município`,
+         cod_mesor = `Código da Mesorregião`,
+         nome_mesor = `Nome da Mesorregião`,
+         pib = `Produto Interno Bruto, \na preços correntes\n(R$ 1.000)`,
+         pib_percapita = `Produto Interno Bruto per capita, \na preços correntes\n(R$ 1,00)`)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Vamos ajustar os tipos de algumas colunas para facilitar juntar com outras tabelas
+pib <-  pib %>% 
+  mutate (cod_mun = as.character(cod_mun),
+          cod_mesor = as.character(cod_mesor),
+          nome_mesor = as.character(nome_mesor))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Importante notar que nesta base, o Paraná possui (corretamente) `r nrow(pib)` municípios.
+
+
+### Censo 2010 - População dos Municípios (IBGE)
+
+O IBGE também disponibiliza os dados do Censo de 2010 no link [Estatísticas](https://www.ibge.gov.br/estatisticas/downloads-estatisticas.html).
+
+Neste caso eu selecione "Censo -> Censo_Demografico_2010 -> resultados e baixei o arquivo "total_populacao_parana.zip", que contém dentro dele um Excel com os dados por município.
+
+Vamos ler este arquivo:
+
+```{r}
+pop <- readxl::read_excel("./dados/total_populacao_parana.xls",
+                          sheet = 1)
+```
+
+Os dados são bastante intuitivos e vamos ficar apenas com as colunas que nos serão úteis.
+
+```{r}
+pop <- pop %>% 
+  rename(cod_mun = `Código do município`,
+         nome_mun = `Nome do município`,
+         tot = `Total da população 2010`) %>% 
+  select(cod_mun, nome_mun, tot)
+glimpse(pop)
+head(pop)
+tail(pop)
+
+```
+
+Precisamos excluir as 2 últimas linhas para não atrapalharem.
+
+```{r}
+pop <- pop %>% 
+  filter(!is.na(tot)) %>% # Exclui linha da fonte 
+  filter(!(cod_mun == "Total")) # Excluir linha total
+```
+
+Esta base também apresenta `r nrow(pop)` municípios para o Paraná.
+
+
+### Expectativa de vida nos municípios do PR
+
+Esta foi a informação que tive mais dificuldade para encontrar. No final, acabei optanto pelos dados do site [atlas.brasil.org](https://atlas.brasil.org). Para conseguir os dados é preciso navegar no site pela área de "Consulta" e "Ver na tabela". Os dados podem ser filtrados pela territorialidade: Municípios -> por Estado -> Paraná -> Todos os municípios. E dentro da opção de "Desenvolvimento Humano", a opção "Logenvidade" possui 2 fontes: PNAD (2012-2017) e Censo (1991-2010). Ainda é preciso selecionar opções no painel direito, onde consta "desagregações para todas as linhas".
+
+Infelizmente, quando da minha consulta, os dados do PNAD estavam disponíveis apenas por estado e não por município. Por causa disto a única opção foi escolher os dados do Censo de 2010.
+
+O sistema permite o download de um arquivo "data.xlsx". Para ler este arquivo optei por *readxl::read_excel* e por renomear as colunas para diminuir os nomes.
+
+```{r esperanca_vida}
+esp_vida_pr_2010 = readxl::read_excel("./dados/data.xlsx",
+                             sheet = 1)
+esp_vida_pr_2010 <- esp_vida_pr_2010 %>% 
+  rename(nome_mun = Territorialidades,
+         esp_vida = `Esperança de vida ao nascer 2010`,
+         idhm_longev = `IDHM Longevidade 2010`)
+glimpse(esp_vida_pr_2010)
+head(esp_vida_pr_2010)
+tail(esp_vida_pr_2010)
+```
+
+Dois ajustes são necessários para estes dados: 
+
+1. Algumas linhas precisam ser eliminadas.
+
+A primeira linha contém os dados do Brasil - como uma referência - e precisa ser retirada dos dados. Mas, vamos guardá-la para utilizá-la mais tarde.
+
+```{r}
+ref_br <- esp_vida_pr_2010 %>% 
+  filter(nome_mun == "Brasil")
+esp_vida_pr_2010 <- esp_vida_pr_2010 %>% 
+  filter(!(nome_mun == "Brasil"))
+```
+
+No final dos dados há algumas linhas com informações que não são dados: a elaboração e a fonte. Podemos excluir também estas linhas - incluindo uma linha em branco entre o último município e estas 2 linhas finais - fazendo um filtro pelas colunas de dados.
+
+```{r}
+esp_vida_pr_2010 <- esp_vida_pr_2010 %>% 
+  filter(!is.na(idhm_longev))
+```
+
+2. Os nomes dos municípios estão acompanhados da sigla do estado. Queremos retirar esta sigla, ou seja, ao invés de 
+"Ibaiti (PR)" queremos apenas "Ibaiti".
+
+Podemos fazer isto através do pacote *stringr*. A função *str_sub()* estrai uma substring que no nosso caso se inicía sempre no primeiro caracter e termina no quinto caracter de trás para frente (repare no símbolo "-" indicando a contagem de trás para frente).
+
+```{r}
+esp_vida_pr_2010 <- esp_vida_pr_2010 %>% 
+  mutate(nome_mun = str_trim(str_sub(nome_mun, 1, -5), "both"))
+```
+
+Lembrando que nesta base os nomes dos municípios estão escritos num formato semelhante ao obtido pela função *str_to_title()* do pacote *stringr*.
+
+Nesta base há `r nrow(esp_vida_pr_2010)`  municípios, um a menos que o esperado.
+
+## Juntando os dados
+
+As bases possuem colunas que nos ajudam a juntar as bases principalmente o código IBGE dos municípios e os nomes. Importante que nas 3 bases os nomes estão no mesmo padrão de grafia.
+
+```{r}
+dados_pr <- pib %>% left_join(pop)
+dados_pr <- dados_pr %>% left_join(esp_vida_pr_2010)
+library(visdat)
+dados_pr %>% vis_dat()
+```
+
+
+## Diagrama de Dispersão
+
+Vamos fazer um diagram de dispersão semelhante ao da figura 2.1 do livro ModernDive, porém, neste caso, estamos cruzando o PIB dos municípios paranenses com a expectativa de vida, os pontos serão dimensionados pela população e coloridos conforme a região (para isto precisamos transformar os dados de região em fatores).
+
+```{r}
+dados_pr <- dados_pr %>% 
+  mutate(nome_mesor = as.factor(nome_mesor))
+```
+
+
+```{r scatter_plot}
+options(scipen = 999) # desabilita a notação científica
+pr_plot <- 
+  ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
+   geom_point(mapping = aes(x = pib, 
+                            y = esp_vida, 
+                            size = tot, 
+                            fill = nome_mesor), shape = 21)
+pr_plot
+```
+
+Não ficou bom. Vamos mudar a escala de x para logarítmica para melhor visualização dos dados. Vamos também ajustar os nomes dos eixos e das legendas. E, vamos incluir uma linha com a média de expectativa de vida do Brasil.
+
+```{r}
+ # desabilita a notação científica
+pr_plot <- 
+  ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
+  geom_point(mapping = aes(x = pib/1000000, 
+                            y = esp_vida, 
+                            size = tot, 
+                            fill = nome_mesor), shape = 21) +
+  labs(title = "PIB vs Expectativa de Vida nos municípios paranaenses",
+       subtitle = "2010",
+       caption = "fonte: IBGE",
+       x = "PIB (milhões)",
+       y = "Expectativa de Vida",
+       fill = "Regiões",
+       size = "População") +
+  scale_x_continuous(trans = 'log10') +
+  geom_hline(data = ref_br, aes(yintercept = esp_vida), color = "darkblue")
+
+pr_plot
+  
+```
+
