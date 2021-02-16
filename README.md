@@ -433,7 +433,7 @@ dados_pr <- dados_pr %>%
   mutate(grupo_pib = case_when(pib > 1000000 ~ "PIB acima de 1 milhão",
                                pib <= 1000000 & pib > 100000 ~ "PIB entre 100mil e 1 milhão",
                                pib <= 100000 ~ "PIB abaixo de 100mil"),
-         grupo_pib = ordered(as.factor(grupo_pib), levels = c("PIB abaixo de 100mil", "PIB entre 100mil e 1 milhão", "PIB acima de 1 milhão")))
+         grupo_pib = ordered(as.factor(grupo_pib), levels = c("PIB acima de 1 milhão", "PIB entre 100mil e 1 milhão", "PIB abaixo de 100mil")))
 
 pr_plot <- 
   ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
