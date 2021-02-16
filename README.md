@@ -12,7 +12,7 @@ apresentar os diversos temas cobertos pelo livro.
 Logo no início nos deparamos com uma ótima introdução sobre tipos de
 gráficos e com o belo gráfico da
 [figura 2.1](https://moderndive.com/2-viz.html#fig:gapminder) que mostra
-a relação entre PIB e expectativa de vida entre países.
+a relação entre PIB e esperança de vida entre países.
 
 Este exercício se propõe a repetir o mesmo gráfico, porém para os
 municípios do Paraná, usando as regiões para o código de cores, que
@@ -31,7 +31,7 @@ gráfico. São eles:
 
   - População dos municípios;
 
-  - Expectativa de vida nos municípios.
+  - Esperança de vida nos municípios.
 
 ### PIB dos Municípios (IBGE)
 
@@ -157,7 +157,7 @@ pop <- pop %>%
 
 Esta base também apresenta 399 municípios para o Paraná.
 
-### Expectativa de vida nos municípios do PR
+### Esperança de vida nos municípios do PR
 
 Esta foi a informação que tive mais dificuldade para encontrar. No
 final, acabei optanto pelos dados do site
@@ -304,7 +304,7 @@ dados_pr %>% vis_miss()
 
 Vamos fazer um diagram de dispersão semelhante ao da figura 2.1 do livro
 ModernDive, porém, neste caso, estamos cruzando o PIB dos municípios
-paranenses com a expectativa de vida, os pontos serão dimensionados pela
+paranenses com a esperança de vida, os pontos serão dimensionados pela
 população e coloridos conforme a região (para isto precisamos
 transformar os dados de região em fatores).
 
@@ -328,8 +328,8 @@ pr_plot
 
 Não ficou bom. Vamos mudar a escala de x para logarítmica para melhor
 visualização dos dados. Vamos também ajustar os nomes dos eixos e das
-legendas. E, vamos incluir uma linha com a média de expectativa de vida
-do Brasil.
+legendas. E, vamos incluir uma linha com a média de esperança de vida do
+Brasil.
 
 ``` r
  # desabilita a notação científica
@@ -339,22 +339,29 @@ pr_plot <-
                             y = esp_vida, 
                             size = tot, 
                             fill = nome_mesor), shape = 21) +
-  labs(title = "PIB vs Expectativa de Vida nos municípios paranaenses",
+  labs(title = "PIB vs Esperança de Vida nos municípios paranaenses",
        subtitle = "2010",
        caption = "fonte: IBGE",
        x = "PIB (milhões)",
-       y = "Expectativa de Vida",
+       y = "Esperança de Vida",
        fill = "Regiões",
        size = "População") +
   scale_x_continuous(trans = 'log10') +
-  geom_hline(data = ref_br, aes(yintercept = esp_vida), color = "darkblue")
+  ggrepel::geom_label_repel(data = (dados_pr %>% filter(!is.na(esp_vida), pib > 5000000)), mapping = aes(x = pib/1000000, 
+                            y = esp_vida, 
+                            label = nome_mun), 
+                            size = 2,
+                            max.overlaps = Inf) +
+  geom_hline(data = ref_br, aes(yintercept = esp_vida), color = "darkblue") 
+#+
+ # geom_label(aes(x = pib, y = 73, label = "Esp. Vida média - Brasil"), size = 2)
 
 pr_plot
 ```
 
 ![](readme_files/figure-gfm/scatter_plot_2-1.png)<!-- -->
 
-Alternativamente podemos trocar a expectativa de vida pelo Índice de
+Alternativamente podemos trocar a esperança de vida pelo Índice de
 Desenvolvimento Humano de longevidade, e o PIB por PIB per capita.
 
 ``` r
@@ -379,12 +386,75 @@ pr_plot <-
                             mapping = aes( x = pib_percapita, 
                                            y = idhm_longev, 
                                            label = nome_mun),
-                            max.overlaps = Inf)
-
+                            max.overlaps = Inf) 
 pr_plot
 ```
 
 ![](readme_files/figure-gfm/scatter_plot_3-1.png)<!-- -->
+
+Alguns municípios aparentam ter um PIB per capita acima da média
+estadual, em função de atividades econômicas específicas de suas
+regiões. Para São José dos Pinhais e Araucária a indústria de
+transformação (automotiva e ciderurgia, respectivamente), e para Saudade
+do Iguaçu, energia elétrica.
+
+### Facets
+
+Uma visão de facetas ajuda a separar as regiões do estado.
+
+``` r
+pr_plot <- 
+  ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
+  geom_point(mapping = aes(x = pib/1000000, 
+                            y = esp_vida, 
+                            size = tot, 
+                            fill = nome_mesor), shape = 21) +
+  labs(title = "PIB vs Esperança de Vida nos municípios paranaenses",
+       subtitle = "2010",
+       caption = "fonte: IBGE",
+       x = "PIB (milhões)",
+       y = "Esperança de vida",
+       fill = "Regiões",
+       size = "População") +
+  scale_x_continuous(trans = 'log10') +
+  geom_hline(data = ref_br, aes(yintercept = esp_vida), color = "darkblue") 
+
+pr_plot + facet_wrap(~ nome_mesor, ncol = 2)
+```
+
+![](readme_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+Outra opção seria agrupar os municípios não por região mas por faixa do
+PIB. Para isso precisamos criar uma nova variável, conforme mostrado a
+seguir.
+
+``` r
+dados_pr <- dados_pr %>% 
+  mutate(grupo_pib = case_when(pib > 1000000 ~ "PIB acima de 1 milhão",
+                               pib <= 1000000 & pib > 100000 ~ "PIB entre 100mil e 1 milhão",
+                               pib <= 100000 ~ "PIB abaixo de 100mil"),
+         grupo_pib = ordered(as.factor(grupo_pib), levels = c("PIB abaixo de 100mil", "PIB entre 100mil e 1 milhão", "PIB acima de 1 milhão")))
+
+pr_plot <- 
+  ggplot(data = (dados_pr %>% filter(!is.na(esp_vida)))) +
+  geom_point(mapping = aes(x = pib/1000000, 
+                            y = esp_vida, 
+                            size = tot, 
+                            fill = nome_mesor), shape = 21) +
+  labs(title = "PIB vs Esperança de Vida nos municípios paranaenses",
+       subtitle = "2010",
+       caption = "fonte: IBGE",
+       x = "PIB (milhões)",
+       y = "Esperança de vida",
+       fill = "PIB",
+       size = "População") +
+  scale_x_continuous(trans = 'log10') +
+  geom_hline(data = ref_br, aes(yintercept = esp_vida), color = "darkblue") 
+
+pr_plot + facet_wrap(~ grupo_pib, ncol = 1)
+```
+
+![](readme_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ## Conclusões
 
